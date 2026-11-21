@@ -1,27 +1,34 @@
 diff --git a/apps/mobile/src/components/BrandMark.tsx b/apps/mobile/src/components/BrandMark.tsx
-index 28d71929..58be4445 100644
+index b51d0b4a..52c62789 100644
 --- a/apps/mobile/src/components/BrandMark.tsx
 +++ b/apps/mobile/src/components/BrandMark.tsx
-@@ -1,18 +1,12 @@
+@@ -1,24 +1,13 @@
 -import Constants from "expo-constants";
  import { Image } from "expo-image";
+-import { msg, T, useMessages } from "gt-react-native";
++import { T } from "gt-react-native";
  import { View } from "react-native";
-
+ 
  import { AppText as Text } from "./ui/AppText";
  import { T3_CODE_BRAND_MARK_SOURCE } from "./brandAssets";
-
+ 
 -const appVariant = Constants.expoConfig?.extra?.appVariant;
 -const DEFAULT_STAGE_LABEL =
--  appVariant === "development" ? "Dev" : appVariant === "preview" ? "Preview" : "Beta";
+-  appVariant === "development"
+-    ? msg("Dev", { $context: "app release stage badge" })
+-    : appVariant === "preview"
+-      ? msg("Preview", { $context: "app release stage badge" })
+-      : msg("Beta", { $context: "app release stage badge" });
 -
  export function BrandMark(props: { readonly compact?: boolean; readonly stageLabel?: string }) {
+-  const m = useMessages();
    const compact = props.compact ?? false;
    const iconSize = compact ? 32 : 44;
--  const stageLabel = props.stageLabel ?? DEFAULT_STAGE_LABEL;
-
+-  const stageLabel = props.stageLabel ?? m(DEFAULT_STAGE_LABEL);
+ 
    return (
      <View className="flex-row items-center gap-3">
-@@ -27,12 +21,9 @@ export function BrandMark(props: { readonly compact?: boolean; readonly stageLab
+@@ -33,12 +22,9 @@ export function BrandMark(props: { readonly compact?: boolean; readonly stageLab
        />
        <View className="gap-1">
          <View className="flex-row items-center gap-2">
@@ -38,40 +45,58 @@ index 28d71929..58be4445 100644
          {!compact ? (
            <Text className="text-xs font-medium text-foreground-muted">
 diff --git a/apps/mobile/src/components/CompactBrandTitle.tsx b/apps/mobile/src/components/CompactBrandTitle.tsx
-index 7a251a2e..76493a75 100644
+index bf706824..59b20d03 100644
 --- a/apps/mobile/src/components/CompactBrandTitle.tsx
 +++ b/apps/mobile/src/components/CompactBrandTitle.tsx
-@@ -1,12 +1,9 @@
+@@ -1,17 +1,12 @@
  import { NATIVE_WORKSPACE_COLUMNS_SUPPORTED } from "../native/NativeWorkspaceColumns";
 -import Constants from "expo-constants";
- import { useState } from "react";
+ import { useGT } from "gt-react-native";
+-import { useState } from "react";
  import { Platform, View } from "react-native";
-
+ 
  import { AppText as Text } from "./ui/AppText";
 -import { T3Wordmark } from "./T3Wordmark";
  import { IPAD_HOME_TITLE_OFFSET } from "../lib/layoutMetrics";
 -import { resolveMobileStageLabel } from "../lib/mobileBranding";
  import { useAndroidControlSizing } from "./ui/useAndroidControlSizing";
-
+ 
  const BRAND_MAX_FONT_SCALE = 1.4;
-@@ -24,7 +21,6 @@ export function CompactBrandTitle(
+-const WORDMARK_SUFFIX = "Code";
+ 
+ export function brandTitleOffset(): number {
+   if (Platform.OS !== "ios") return 0;
+@@ -22,27 +17,18 @@ export function CompactBrandTitle(
+   props: {
+     readonly allowFontScaling?: boolean;
+     readonly accessibilityLabel?: string;
+-    /** Fills the row and hides the stage badge when the full title does not fit. */
++    /** Fills the available row width. */
      readonly fit?: boolean;
    } = {},
  ) {
+   const gt = useGT();
 -  const stageLabel = resolveMobileStageLabel(Constants.expoConfig?.extra?.appVariant);
    const titleOffset = brandTitleOffset();
    const { scale } = useAndroidControlSizing();
-   const [availableWidth, setAvailableWidth] = useState<number | null>(null);
-@@ -39,7 +35,7 @@ export function CompactBrandTitle(
-         props.fit && showStage ? (event) => setFullWidth(event.nativeEvent.layout.width) : undefined
-       }
+-  const [availableWidth, setAvailableWidth] = useState<number | null>(null);
+-  // Measured only while the badge shows, so hiding it does not make it look like it fits.
+-  const [fullWidth, setFullWidth] = useState<number | null>(null);
+-  const showStage =
+-    !props.fit || availableWidth === null || fullWidth === null || fullWidth <= availableWidth;
+ 
+   const title = (
+     <View
+-      onLayout={
+-        props.fit && showStage ? (event) => setFullWidth(event.nativeEvent.layout.width) : undefined
+-      }
        aria-level={1}
--      accessibilityLabel={props.accessibilityLabel ?? "T3 Code, Threads"}
-+      accessibilityLabel={props.accessibilityLabel ?? "ObsidianCode, Threads"}
+-      accessibilityLabel={props.accessibilityLabel ?? gt("T3 Code, Threads")}
++      accessibilityLabel={props.accessibilityLabel ?? gt("ObsidianCode, Threads")}
        accessible
        role="heading"
        className="flex-row items-center gap-1.5"
-@@ -49,35 +45,14 @@ export function CompactBrandTitle(
+@@ -52,45 +38,19 @@ export function CompactBrandTitle(
          props.fit && { flexShrink: 0 },
        ]}
      >
@@ -84,7 +109,7 @@ index 7a251a2e..76493a75 100644
 +        className="font-t3-medium text-foreground"
          style={{ fontSize: 21 * scale, letterSpacing: -0.5 * scale }}
        >
--        Code
+-        {WORDMARK_SUFFIX}
 +        ObsidianCode
        </Text>
 -      {showStage ? (
@@ -108,7 +133,18 @@ index 7a251a2e..76493a75 100644
 -      ) : null}
      </View>
    );
-
+ 
+   return props.fit ? (
+-    <View
+-      className="min-w-0 flex-1 flex-row items-center"
+-      onLayout={(event) => setAvailableWidth(event.nativeEvent.layout.width)}
+-    >
+-      {title}
+-    </View>
++    <View className="min-w-0 flex-1 flex-row items-center">{title}</View>
+   ) : (
+     title
+   );
 diff --git a/apps/mobile/src/components/brandAssets.ts b/apps/mobile/src/components/brandAssets.ts
 index dbf7ab55..001f6963 100644
 --- a/apps/mobile/src/components/brandAssets.ts
@@ -127,10 +163,10 @@ index dbf7ab55..001f6963 100644
 +// ObsidianCode: its own icon (overlay/apps/mobile/assets/obsidiancode).
 +export const T3_CODE_BRAND_MARK_SOURCE = require("../../assets/obsidiancode/icon.png");
 diff --git a/apps/mobile/src/features/connection/ConnectionsNewRouteScreen.tsx b/apps/mobile/src/features/connection/ConnectionsNewRouteScreen.tsx
-index 6f4e85d1..76488c54 100644
+index 533c71b5..ecdcc210 100644
 --- a/apps/mobile/src/features/connection/ConnectionsNewRouteScreen.tsx
 +++ b/apps/mobile/src/features/connection/ConnectionsNewRouteScreen.tsx
-@@ -28,6 +28,7 @@ import { useRemoteConnections } from "../../state/use-remote-environment-registr
+@@ -29,6 +29,7 @@ import { useRemoteConnections } from "../../state/use-remote-environment-registr
  import { SymbolView } from "../../components/ui/AppSymbol";
  import { hasCloudPublicConfig } from "../cloud/publicConfig";
  import { CloudEnvironmentRows } from "./CloudEnvironmentRows";
@@ -138,7 +174,7 @@ index 6f4e85d1..76488c54 100644
  import { autoConnectReport, devAutoConnectAttemptAtom } from "./devAutoConnect";
  import { splitEnvironmentSections } from "./environmentSections";
  import { leaveSettingsPage } from "../settings/settings-navigation";
-@@ -206,16 +207,10 @@ function PairingForm({
+@@ -217,17 +218,11 @@ function PairingForm({
          }}
        >
          <View collapsable={false} className="gap-6.5">
@@ -150,13 +186,14 @@ index 6f4e85d1..76488c54 100644
 -            }}
 -          />
 +          <TailscaleCard />
-
+ 
            <View collapsable={false} className="gap-2">
--            <Text className="px-4 text-sm font-t3-medium text-foreground-muted">Or enter it</Text>
-+            <Text className="px-4 text-sm font-t3-medium text-foreground-muted">Pairing link</Text>
+             <Text className="px-4 text-sm font-t3-medium text-foreground-muted">
+-              <T>Or enter it</T>
++              <T>Pairing link</T>
+             </Text>
              <View
                collapsable={false}
-               className={cn(
 diff --git a/apps/mobile/src/features/settings/SettingsRouteScreen.tsx b/apps/mobile/src/features/settings/SettingsRouteScreen.tsx
 --- a/apps/mobile/src/features/settings/SettingsRouteScreen.tsx
 +++ b/apps/mobile/src/features/settings/SettingsRouteScreen.tsx
